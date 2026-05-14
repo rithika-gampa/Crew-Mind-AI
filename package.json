@@ -1,0 +1,19 @@
+{
+  "name": "crewmind-ai-research-system",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Five-agent research and content creator web app.",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js"
+  },
+  "keywords": [
+    "anthropic",
+    "claude",
+    "react",
+    "multi-agent",
+    "research",
+    "content-generation"
+  ],
+  "license": "MIT"
+}
