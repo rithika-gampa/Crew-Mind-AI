@@ -5,9 +5,7 @@ CrewMindAI is a multi-agent AI research and content creation system. The user ty
 ## Stack
 
 - Frontend: React in a single `app.jsx` file, loaded directly in the browser with no build step.
-- Backend: shared Node.js backend logic in `lib/backend.js`.
-- Local development server: `server.js`.
-- Vercel deployment entrypoints: `api/claude-stream.js` and `api/research.js`.
+- Backend: Node.js HTTP server in `server.js`.
 - API providers: configurable multi-provider chain across Grok, Groq, and Gemini.
 - Streaming: Server-sent events from `/api/research` to the frontend.
 - Styling: A raw CSS string injected from the React app, plus small inline style objects for dynamic UI state.
@@ -39,38 +37,6 @@ npm start
 ```
 
 Open `http://localhost:3000`.
-
-## Deploy on Vercel
-
-This repo is now structured for Vercel:
-
-- Static frontend files are served directly from the project root.
-- Backend endpoints live under `api/`.
-- Shared provider and workflow code lives in `lib/backend.js`.
-- `vercel.json` configures the Vercel Node runtime for the API functions.
-
-In Vercel, import the GitHub repo and set these environment variables in the project dashboard:
-
-```text
-PRIMARY_PROVIDER
-BACKUP_PROVIDERS
-XAI_API_KEY
-XAI_MODEL
-GROQ_API_KEY
-GROQ_MODEL
-GEMINI_API_KEY
-GEMINI_MODEL
-```
-
-Recommended values:
-
-```text
-PRIMARY_PROVIDER=groq
-BACKUP_PROVIDERS=gemini,xai
-GROQ_MODEL=llama-3.3-70b-versatile
-GEMINI_MODEL=gemini-2.5-flash
-XAI_MODEL=grok-4.20-reasoning
-```
 
 ## Provider fallback
 

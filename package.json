@@ -5,7 +5,7 @@
   "description": "Five-agent research and content creator web app.",
   "scripts": {
     "start": "node server.js",
-    "check": "node --check server.js && node --check lib/backend.js && node --check api/claude-stream.js && node --check api/research.js"
+    "check": "node --check server.js"
   },
   "keywords": [
     "anthropic",
