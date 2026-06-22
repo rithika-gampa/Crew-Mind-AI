@@ -4,6 +4,65 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CrewMindAI | Multi-Agent Research System</title>
+    <style>
+      html, body {
+        margin: 0;
+        min-height: 100%;
+        background: #07090f;
+        color: #ffffff;
+        font-family: Outfit, sans-serif;
+      }
+
+      #root {
+        min-height: 100vh;
+      }
+
+      .boot-shell {
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        background:
+          radial-gradient(circle at top, rgba(96, 165, 250, 0.12), transparent 32%),
+          #07090f;
+      }
+
+      .boot-card {
+        width: min(560px, 100%);
+        padding: 24px;
+        border-radius: 18px;
+        border: 1px solid #162235;
+        background: #0c1422;
+        box-shadow: 0 20px 80px rgba(0, 0, 0, 0.35);
+      }
+
+      .boot-eyebrow {
+        font: 600 11px/1.2 monospace;
+        letter-spacing: 0.22em;
+        color: rgba(255, 255, 255, 0.65);
+        margin-bottom: 12px;
+      }
+
+      .boot-title {
+        font-size: 28px;
+        font-weight: 800;
+        margin: 0 0 10px;
+      }
+
+      .boot-copy {
+        margin: 0;
+        font-size: 14px;
+        line-height: 1.7;
+        color: rgba(255, 255, 255, 0.88);
+      }
+
+      .boot-copy code {
+        background: #111c2e;
+        border-radius: 6px;
+        padding: 2px 6px;
+      }
+    </style>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -12,10 +71,98 @@
     />
   </head>
   <body>
-    <div id="root"></div>
-    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="text/babel" src="app.jsx"></script>
+    <div id="root">
+      <div class="boot-shell">
+        <div class="boot-card">
+          <div class="boot-eyebrow">SYSTEM STARTUP</div>
+          <h1 class="boot-title">Loading CrewMindAI</h1>
+          <p class="boot-copy">The app is starting. If this screen stays here, the browser likely failed to load a frontend dependency.</p>
+        </div>
+      </div>
+    </div>
+    <script>
+      (function () {
+        const root = document.getElementById("root");
+
+        window.showBootMessage = function showBootMessage(title, detail) {
+          root.innerHTML = `
+            <div class="boot-shell">
+              <div class="boot-card">
+                <div class="boot-eyebrow">FRONTEND BOOT</div>
+                <h1 class="boot-title">${title}</h1>
+                <p class="boot-copy">${detail}</p>
+              </div>
+            </div>
+          `;
+        };
+
+        window.addEventListener("error", function (event) {
+          if (!window.React || !window.ReactDOM || !window.Babel) {
+            window.showBootMessage(
+              "Frontend dependencies failed to load",
+              "React, ReactDOM, or Babel could not be loaded from the CDN. Check your internet connection or try refreshing the page."
+            );
+            return;
+          }
+
+          if (!root.children.length || root.textContent.includes("Loading CrewMindAI")) {
+            window.showBootMessage(
+              "Frontend failed during startup",
+              `The browser reported: <code>${String(event.message || "Unknown error")}</code>`
+            );
+          }
+        });
+
+        window.addEventListener("unhandledrejection", function (event) {
+          if (!root.children.length || root.textContent.includes("Loading CrewMindAI")) {
+            window.showBootMessage(
+              "Frontend failed during startup",
+              `The browser reported: <code>${String(event.reason?.message || event.reason || "Unknown promise rejection")}</code>`
+            );
+          }
+        });
+      })();
+    </script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react@18/umd/react.development.js"
+      onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/react@18/umd/react.development.js';"
+    ></script>
+    <script
+      crossorigin
+      src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"
+      onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.development.js';"
+    ></script>
+    <script
+      src="https://unpkg.com/@babel/standalone/babel.min.js"
+      onerror="this.onerror=null; this.src='https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js';"
+    ></script>
+    <script>
+      (async function bootApp() {
+        try {
+          if (!window.React || !window.ReactDOM || !window.Babel) {
+            throw new Error("React, ReactDOM, or Babel is unavailable.");
+          }
+
+          const response = await fetch("app.jsx", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error(`Could not load app.jsx (${response.status})`);
+          }
+
+          const source = await response.text();
+          const compiled = window.Babel.transform(source, {
+            presets: [["react", { runtime: "classic" }]],
+            sourceType: "script",
+          }).code;
+
+          new Function(compiled)();
+        } catch (error) {
+          window.showBootMessage(
+            "Frontend failed during startup",
+            `The browser reported: <code>${String(error.message || error)}</code>`
+          );
+        }
+      })();
+    </script>
   </body>
 </html>
