@@ -2,6 +2,10 @@
 
 CrewMindAI is a multi-agent AI research and content creation system. The user types or selects a topic, picks an output format, and five specialized AI agents collaborate to produce publication-ready content in real time.
 
+## What We Are Using
+
+This project uses `Node.js` for the backend server and `React` for the frontend UI.
+
 ## Stack
 
 - Frontend: React in a single `app.jsx` file, loaded directly in the browser with no build step.

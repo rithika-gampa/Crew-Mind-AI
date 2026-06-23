@@ -1,4 +1,6 @@
 .env
 node_modules
+.venv/
+.agents/
 __pycache__/
 *.pyc
