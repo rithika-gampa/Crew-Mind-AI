@@ -161,6 +161,7 @@ function App() {
   const [topic, setTopic] = useState("AI & LLMs");
   const [custom, setCustom] = useState("");
   const [format, setFormat] = useState("article");
+  const [quickAnswer, setQuickAnswer] = useState(false);
   const [phase, setPhase] = useState("idle");
   const [statuses, setStatuses] = useState({});
   const [outputs, setOutputs] = useState({});
@@ -169,6 +170,7 @@ function App() {
   const [active, setActive] = useState(null);
   const [tab, setTab] = useState("config");
   const [words, setWords] = useState(0);
+  const [copied, setCopied] = useState(false);
   const logRef = useRef(null);
   const outRef = useRef(null);
 
@@ -195,6 +197,7 @@ function App() {
   const doneCount = Object.values(statuses).filter((s) => s === "done").length;
   const progress = phase === "done" ? 100 : Math.round((doneCount / 5) * 100);
   const chosen = custom.trim() || topic;
+  const outputLabel = quickAnswer ? "quick answer" : format;
 
   async function run() {
     setPhase("running");
@@ -211,10 +214,12 @@ function App() {
       addLog("manager", `Planning workflow → "${chosen}"`);
       await sleep(300);
       const plan = await callClaude(
-        "You are a Manager Agent orchestrating a multi-agent research workflow. Always focus on the EXACT topic given.",
-        `Plan a research workflow for "${chosen}" targeting a ${format}. List 3 specific angles to investigate. Max 100 words.`,
+        "You are a Manager Agent orchestrating a multi-agent research workflow. Always focus on the EXACT topic given. If quick answer mode is enabled, keep the plan minimal and direct.",
+        quickAnswer
+          ? `Plan a minimal workflow for a quick answer about "${chosen}". Return only 2 short checks. Max 40 words.`
+          : `Plan a research workflow for "${chosen}" targeting a ${format}. List 3 specific angles to investigate. Max 100 words.`,
         (t) => setO("manager", t),
-        220,
+        quickAnswer ? 120 : 220,
         (meta) => addLog("system", meta.message),
       );
       setS("manager", "done");
@@ -224,10 +229,12 @@ function App() {
       setS("monitor", "running");
       addLog("monitor", `Scanning latest info on "${chosen}"…`);
       const intel = await callClaude(
-        'You are a Scout Agent. Report the most current, specific, real-world developments about ANY topic the user provides. Always stay on the exact topic.',
-        `Research topic: "${chosen}"\n\n1. Give 5 specific recent facts/developments about "${chosen}" (2024-2026, real names/stats when relevant)\n2. Name 3 key players relevant to "${chosen}"\n3. Describe 2 emerging trends in "${chosen}"\n\nMax 180 words. Stay strictly on: "${chosen}".`,
+        'You are a Scout Agent. Report the most current, specific, real-world developments about ANY topic the user provides. Always stay on the exact topic. In quick answer mode, return only the smallest set of facts needed to explain the topic simply.',
+        quickAnswer
+          ? `Research topic: "${chosen}"\n\nReturn the 3 most important facts needed to explain "${chosen}" simply to a beginner.\n\nMax 70 words.`
+          : `Research topic: "${chosen}"\n\n1. Give 5 specific recent facts/developments about "${chosen}" (2024-2026, real names/stats when relevant)\n2. Name 3 key players relevant to "${chosen}"\n3. Describe 2 emerging trends in "${chosen}"\n\nMax 180 words. Stay strictly on: "${chosen}".`,
         (t) => setO("monitor", t),
-        420,
+        quickAnswer ? 180 : 420,
         (meta) => addLog("system", meta.message),
       );
       setS("monitor", "done");
@@ -237,10 +244,12 @@ function App() {
       setS("researcher", "running");
       addLog("researcher", `Deep-diving into "${chosen}"…`);
       const research = await callClaude(
-        "You are a Research Agent. Perform deep analysis of any topic. Always stay on the exact topic provided.",
-        `Topic: "${chosen}"\n\nUsing this intel:\n${intel}\n\nAnalyze "${chosen}":\n- Core mechanism/concept\n- Market or real-world implications\n- Key metrics and data\n- Most surprising angle\n\nMax 200 words. Stay on: "${chosen}".`,
+        "You are a Research Agent. Perform deep analysis of any topic. Always stay on the exact topic provided. In quick answer mode, simplify instead of expanding.",
+        quickAnswer
+          ? `Topic: "${chosen}"\n\nUsing this intel:\n${intel}\n\nExplain "${chosen}" in the simplest correct way for a beginner.\n\nMax 90 words.`
+          : `Topic: "${chosen}"\n\nUsing this intel:\n${intel}\n\nAnalyze "${chosen}":\n- Core mechanism/concept\n- Market or real-world implications\n- Key metrics and data\n- Most surprising angle\n\nMax 200 words. Stay on: "${chosen}".`,
         (t) => setO("researcher", t),
-        520,
+        quickAnswer ? 220 : 520,
         (meta) => addLog("system", meta.message),
       );
       setS("researcher", "done");
@@ -251,9 +260,11 @@ function App() {
       addLog("summarizer", "Distilling insights…");
       const brief = await callClaude(
         "You are a Synthesis Agent. Create tight content briefs about any topic provided.",
-        `Topic: "${chosen}" | Format: ${format}\n\nINTEL: ${intel}\nANALYSIS: ${research}\n\nBrief for ${format} about "${chosen}":\n- HOOK: 1 compelling sentence\n- KEY POINTS: 4 bullets about "${chosen}"\n- NARRATIVE ARC for ${format}\n- TAKEAWAY\n\nMax 160 words.`,
+        quickAnswer
+          ? `Topic: "${chosen}" | Format: quick answer\n\nINTEL: ${intel}\nANALYSIS: ${research}\n\nCreate a minimal brief:\n- CORE IDEA: 1 line\n- MUST INCLUDE POINTS: only what is essential\n- SIMPLE TAKEAWAY\n\nKeep it concise, but complete.`
+          : `Topic: "${chosen}" | Format: ${format}\n\nINTEL: ${intel}\nANALYSIS: ${research}\n\nBrief for ${format} about "${chosen}":\n- HOOK: 1 compelling sentence\n- KEY POINTS: 4 bullets about "${chosen}"\n- NARRATIVE ARC for ${format}\n- TAKEAWAY\n\nMax 160 words.`,
         (t) => setO("summarizer", t),
-        360,
+        quickAnswer ? 220 : 360,
         (meta) => addLog("system", meta.message),
       );
       setS("summarizer", "done");
@@ -261,7 +272,7 @@ function App() {
 
       await sleep(200);
       setS("writer", "running");
-      addLog("writer", `Writing ${format} about "${chosen}"…`);
+      addLog("writer", `Writing ${outputLabel} about "${chosen}"…`);
       const hint = {
         article: `Blog article. Start with: # [title about ${chosen}]\nThen intro paragraph.\n## [section 1]\nContent\n## [section 2]\nContent\n## [section 3]\nContent\n## Conclusion\nContent`,
         script: `Video script. Use: # [title about ${chosen}]\n[HOOK]\nScript\n[INTRO]\nScript\n[MAIN POINT 1]\nScript\n[MAIN POINT 2]\nScript\n[MAIN POINT 3]\nScript\n[CTA]\nScript`,
@@ -271,14 +282,18 @@ function App() {
 
       let written = "";
       await callClaude(
-        'You are an elite Content Writer. Write publication-ready content SPECIFICALLY about the topic requested. Never write generic content. Always use the exact topic. CRITICAL: Match output length to what the topic actually needs — a simple or narrow question gets a short, direct answer, while a broad or complex topic gets a fuller piece. Never pad.',
-        `Write a ${format} SPECIFICALLY about: "${chosen}"\n\nResearch brief:\n${brief}\n\nFormat:\n${hint}\n\nRules:\n- Match length to topic complexity. Simple topic = concise. Complex topic = detailed.\n- Every sentence must be directly about "${chosen}"\n- Use real names and stats from the research where relevant\n- Proper markdown formatting\n- Do NOT pad to hit any word count`,
+        quickAnswer
+          ? 'You are an elite explainer. Give a direct, beginner-friendly quick answer. Keep it short, clear, and complete. No headings, no padding, and no unnecessary detail.'
+          : 'You are an elite Content Writer. Write publication-ready content SPECIFICALLY about the topic requested. Never write generic content. Always use the exact topic. CRITICAL: Match output length to what the topic actually needs — a simple or narrow question gets a short, direct answer, while a broad or complex topic gets a fuller piece. Never pad.',
+        quickAnswer
+          ? `Give a quick answer about "${chosen}".\n\nResearch brief:\n${brief}\n\nRules:\n- Keep it short-form, but fully cover the core idea\n- Use as many short sentences as needed, but stay concise\n- Simple enough for a beginner\n- No headings\n- No bullets\n- Every sentence must be directly about "${chosen}"`
+          : `Write a ${format} SPECIFICALLY about: "${chosen}"\n\nResearch brief:\n${brief}\n\nFormat:\n${hint}\n\nRules:\n- Match length to topic complexity. Simple topic = concise. Complex topic = detailed.\n- Every sentence must be directly about "${chosen}"\n- Use real names and stats from the research where relevant\n- Proper markdown formatting\n- Do NOT pad to hit any word count`,
         (t) => {
           written = t;
           setContent(t);
           setO("writer", t.slice(0, 100) + "…");
         },
-        format === "article" ? 1400 : 1000,
+        quickAnswer ? 240 : format === "article" ? 1400 : 1000,
         (meta) => addLog("system", meta.message),
       );
       setS("writer", "done");
@@ -287,7 +302,7 @@ function App() {
       addLog("manager", "Quality checking…");
       await sleep(500);
       setS("manager", "done");
-      addLog("manager", `Done. ${format} about "${chosen}" is ready.`);
+      addLog("manager", `Done. ${outputLabel} about "${chosen}" is ready.`);
       addLog("system", `5 agents · 4 API calls · ${written.split(/\s+/).filter(Boolean).length} words`);
       setWords(written.split(/\s+/).filter(Boolean).length);
       setPhase("done");
@@ -312,7 +327,38 @@ function App() {
     setStatuses({});
     setActive(null);
     setWords(0);
+    setCopied(false);
     setTab("config");
+  }
+
+  async function handleCopy() {
+    if (!content) return;
+
+    const fallbackCopy = () => {
+      const temp = document.createElement("textarea");
+      temp.value = content;
+      temp.setAttribute("readonly", "");
+      temp.style.position = "fixed";
+      temp.style.opacity = "0";
+      document.body.appendChild(temp);
+      temp.focus();
+      temp.select();
+      document.execCommand("copy");
+      document.body.removeChild(temp);
+    };
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        fallbackCopy();
+      }
+    } catch (error) {
+      fallbackCopy();
+    }
+
+    setCopied(true);
+    window.setTimeout(() => setCopied(false), 1400);
   }
 
   const handleKeyDown = (e) => {
@@ -372,7 +418,8 @@ function App() {
         </div>
       )}
 
-      <main className="grid3">
+      <main className="app-main">
+      <div className="grid3">
         <aside className={`col-l ${tab === "config" ? "tab-show" : "tab-hide"}`}>
           <div style={S.card}>
             <div style={{ ...S.label, color: "#34d399" }}>01 · TOPIC</div>
@@ -393,7 +440,7 @@ function App() {
           </div>
 
           <div style={S.card}>
-            <div style={{ ...S.label, color: "#60a5fa" }}>02 · OUTPUT FORMAT</div>
+          <div style={{ ...S.label, color: "#60a5fa" }}>02 · OUTPUT FORMAT</div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
               {FORMATS.map((f) => (
                 <button key={f.id} className={`fbtn ${format === f.id ? "fbtn-on" : ""}`} onClick={() => setFormat(f.id)}>
@@ -401,6 +448,15 @@ function App() {
                   <span style={{ fontSize: 11, fontFamily: "monospace" }}>{f.label}</span>
                 </button>
               ))}
+            </div>
+            <div className="quickbar">
+              <div className="quickinfo">
+                <div className="quicktitle">Quick Answer</div>
+                <div className="quickcopy">Best for fast definitions like "Explain quantum computing simply."</div>
+              </div>
+              <button type="button" className={`quicktoggle ${quickAnswer ? "quicktoggle-on" : ""}`} onClick={() => setQuickAnswer((v) => !v)} aria-pressed={quickAnswer} aria-label="Toggle quick answer mode">
+                <span className="quickknob" />
+              </button>
             </div>
           </div>
 
@@ -495,10 +551,10 @@ function App() {
                 <div style={{ ...S.label, color: phase === "done" && content ? "#34d399" : "#ffffff", marginBottom: 2, opacity: phase === "done" && content ? 1 : 0.4 }}>
                   {phase === "done" && content ? "✓ GENERATED CONTENT" : "05 · OUTPUT"}
                 </div>
-                {words > 0 && <div style={{ fontSize: 11, color: "#ffffff", fontFamily: "monospace", opacity: 0.82 }}>{words} words · {format} · {chosen}</div>}
+                {words > 0 && <div style={{ fontSize: 11, color: "#ffffff", fontFamily: "monospace", opacity: 0.82 }}>{words} words · {outputLabel} · {chosen}</div>}
               </div>
               {content && (
-                <button style={S.copyBtn} onClick={() => navigator.clipboard.writeText(content)}>⎘ Copy</button>
+                <button style={S.copyBtn} onClick={handleCopy}>{copied ? "Copied" : "⎘ Copy"}</button>
               )}
             </div>
 
@@ -526,14 +582,15 @@ function App() {
             </div>
           </div>
         </div>
+      </div>
       </main>
     </div>
   );
 }
 
 const S = {
-  root: { minHeight: "100vh", background: "#07090f", color: "#ffffff", fontFamily: "'Outfit',sans-serif", overflowX: "hidden" },
-  header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", background: "rgba(7,9,15,0.95)", borderBottom: "1px solid #0e1a28", position: "sticky", top: 0, zIndex: 100, backdropFilter: "blur(16px)", flexWrap: "wrap", gap: 12 },
+  root: { height: "100vh", background: "#07090f", color: "#ffffff", fontFamily: "'Outfit',sans-serif", overflow: "hidden", display: "flex", flexDirection: "column" },
+  header: { display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 22px", background: "rgba(7,9,15,0.95)", borderBottom: "1px solid #0e1a28", position: "relative", zIndex: 100, backdropFilter: "blur(16px)", flexWrap: "wrap", gap: 12, flexShrink: 0 },
   brandIcon: { width: 36, height: 36, background: "#0c1422", border: "1px solid #1a2e44", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", color: "#60a5fa", fontSize: 18, fontWeight: 700 },
   card: { background: "#0c1422", border: "1px solid #111c2e", borderRadius: 14, padding: 18 },
   label: { fontFamily: "monospace", fontSize: 9, letterSpacing: "2px", marginBottom: 14, fontWeight: 600 },
@@ -542,6 +599,8 @@ const S = {
 };
 
 const CSS = `
+html,body,#root{height:100%}
+html,body{overflow:hidden;background:#07090f}
 *,*:before,*:after{box-sizing:border-box;margin:0;padding:0}
 ::-webkit-scrollbar{width:4px}
 ::-webkit-scrollbar-track{background:#07090f}
@@ -575,6 +634,8 @@ const CSS = `
 .mtab-on{color:#ffffff;border-bottom-color:#34d399;opacity:1}
 .mbadge{position:absolute;top:10px;right:calc(50% - 24px);width:5px;height:5px;border-radius:50%;background:#f97316}
 
+.app-main{flex:1;min-height:0;overflow:hidden}
+
 .topicgrid{align-items:stretch}
 .tbtn{width:100%;min-height:42px;display:grid;grid-template-columns:16px minmax(0,1fr);align-items:center;justify-items:start;column-gap:8px;padding:8px 10px;border-radius:9px;background:#0a1020;border:1px solid #111c2e;color:#ffffff;font-size:11px;font-family:'Outfit',sans-serif;cursor:pointer;transition:all 0.2s;text-align:left;opacity:0.5;appearance:none;-webkit-appearance:none;line-height:1;vertical-align:top}
 .tbtn:hover{border-color:#34d399;opacity:1;background:rgba(52,211,153,0.06)}
@@ -590,24 +651,49 @@ const CSS = `
 .fbtn:hover{border-color:#60a5fa;opacity:1;background:rgba(96,165,250,0.07)}
 .fbtn-on{border-color:#60a5fa !important;background:rgba(96,165,250,0.1) !important;opacity:1 !important}
 
+.quickbar{
+  margin-top:12px;padding:12px 14px;border-radius:12px;
+  background:#0a1020;border:1px solid #111c2e;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;
+}
+.quickinfo{flex:1;min-width:0;display:flex;flex-direction:column;justify-content:center}
+.quicktitle{color:#ffffff;font-size:12px;font-weight:700}
+.quickcopy{margin-top:4px;color:#ffffff;font-size:11px;line-height:1.45;opacity:0.78;max-width:220px}
+.quicktoggle{
+  width:58px;height:32px;border-radius:999px;border:1px solid #1a2e44;
+  background:#0c1422;position:relative;cursor:pointer;flex-shrink:0;
+  display:block;align-self:center;
+  transition:all 0.2s ease;
+}
+.quicktoggle-on{background:rgba(52,211,153,0.14);border-color:rgba(52,211,153,0.45)}
+.quickknob{
+  position:absolute;top:3px;left:3px;width:24px;height:24px;border-radius:50%;
+  background:#ffffff;transition:transform 0.2s ease, background 0.2s ease;
+}
+.quicktoggle-on .quickknob{transform:translateX(26px);background:#34d399}
+
 .ctabtn{width:100%;padding:15px;background:linear-gradient(135deg,#064e35,#0e2040);border:1px solid #34d399;border-radius:12px;color:#ffffff;font-size:15px;font-weight:700;font-family:'Outfit',sans-serif;cursor:pointer;transition:all 0.3s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 0 20px rgba(52,211,153,0.1)}
 .ctabtn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 10px 30px rgba(52,211,153,0.2)}
 .ctabtn:active{transform:translateY(0) !important}
 .ctabtn-busy{background:#0c1422 !important;border-color:#111c2e !important;color:#ffffff !important;opacity:0.4;cursor:not-allowed !important;transform:none !important;box-shadow:none !important}
 
-.grid3{display:grid;grid-template-columns:290px 1fr 1fr;grid-template-areas:"l c r";gap:14px;padding:14px;max-width:1440px;margin:0 auto;align-items:start}
+.grid3{display:grid;grid-template-columns:minmax(320px,0.9fr) minmax(500px,1.2fr) minmax(560px,1.25fr);grid-template-areas:"l c r";gap:16px;padding:16px 20px 18px;width:100%;margin:0;align-items:start;height:100%;min-height:0}
+.col-l,.col-c,.col-r{min-height:0;overflow-y:auto;overflow-x:hidden;padding-right:4px}
 .col-l{grid-area:l;display:flex;flex-direction:column;gap:12px}
 .col-c{grid-area:c;display:flex;flex-direction:column;gap:12px}
 .col-r{grid-area:r;display:flex;flex-direction:column;gap:12px}
 
+@media(max-width:1400px){.grid3{grid-template-columns:300px minmax(420px,1.1fr) minmax(460px,1fr);padding:14px 16px 16px}}
 @media(max-width:1100px){.grid3{grid-template-columns:270px 1fr;grid-template-areas:"l c""l r"}}
-@media(max-width:820px){.grid3{grid-template-columns:1fr;grid-template-areas:"l""c""r"}.hpills{display:none}}
+@media(max-width:820px){html,body{overflow:auto}.app-main{overflow:auto}.grid3{grid-template-columns:1fr;grid-template-areas:"l""c""r";height:auto}.col-l,.col-c,.col-r{overflow:visible;padding-right:0}.hpills{display:none}}
 @media(max-width:600px){
+  html,body{overflow:auto}
   .mtabs{display:flex}
   .tab-hide{display:none !important}
   .tab-show{display:flex !important}
   .hide-xs{display:none !important}
-  .grid3{gap:10px;padding:10px}
+  .app-main{overflow:auto}
+  .grid3{gap:10px;padding:10px;height:auto}
 }
 `;
 
