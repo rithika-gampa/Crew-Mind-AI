@@ -42,6 +42,43 @@ npm start
 
 Open `http://localhost:3000`.
 
+## Deploy On Render
+
+This app can be deployed on `Render` as a `Node.js` web service.
+
+### Option 1: Use render.yaml
+
+1. Push this project to GitHub.
+2. In Render, choose `New +` -> `Blueprint`.
+3. Connect your GitHub repo.
+4. Render will detect [render.yaml](C:\Users\Sai Rithika Gampa\Desktop\Projects\Agentathon\render.yaml).
+5. Add your secret environment variables in Render:
+   - `XAI_API_KEY`
+   - `GROQ_API_KEY`
+   - `GEMINI_API_KEY`
+6. Deploy the service.
+
+### Option 2: Create A Web Service Manually
+
+- Runtime: `Node`
+- Build Command: `npm install`
+- Start Command: `npm start`
+
+Set these environment variables in Render:
+
+```text
+PRIMARY_PROVIDER=xai
+BACKUP_PROVIDERS=groq,gemini
+XAI_API_KEY=your_xai_key
+XAI_MODEL=grok-4.20-reasoning
+GROQ_API_KEY=your_groq_key
+GROQ_MODEL=llama-3.3-70b-versatile
+GEMINI_API_KEY=your_gemini_key
+GEMINI_MODEL=gemini-2.5-flash
+```
+
+After deployment, Render will give you a public URL for the app.
+
 ## Provider fallback
 
 - Recommended chain for this project: `Grok -> Groq -> Gemini`.

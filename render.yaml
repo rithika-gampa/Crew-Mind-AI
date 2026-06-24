@@ -1,0 +1,25 @@
+services:
+  - type: web
+    name: crewmind-ai
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    autoDeploy: true
+    envVars:
+      - key: PRIMARY_PROVIDER
+        value: xai
+      - key: BACKUP_PROVIDERS
+        value: groq,gemini
+      - key: XAI_MODEL
+        value: grok-4.20-reasoning
+      - key: GROQ_MODEL
+        value: llama-3.3-70b-versatile
+      - key: GEMINI_MODEL
+        value: gemini-2.5-flash
+      - key: XAI_API_KEY
+        sync: false
+      - key: GROQ_API_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
